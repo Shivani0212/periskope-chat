@@ -14,9 +14,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.49.8",
     "@types/node": "^22.15.21",
     "@types/react": "^19.1.5",
+    "dotenv": "^16.5.0",
     "idb": "^8.0.3",
     "next": "^15.1.8",
     "react": "^19.1.0",

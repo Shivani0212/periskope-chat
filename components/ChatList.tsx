@@ -10,22 +10,21 @@ interface Chat {
 
 interface ChatListProps {
   onSelect: (chatId: string) => void
+  selectedChatId: string | null
 }
 
-export default function ChatList({ onSelect }: ChatListProps) {
+export default function ChatList({ onSelect, selectedChatId }: ChatListProps) {
   const [chats, setChats] = useState<Chat[]>([])
   const [search, setSearch] = useState('')
-  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchChats = async () => {
       const {
         data: { user },
-        error: userError
+        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) return
 
-      setUserId(user.id)
+      if (userError || !user) return
 
       const { data, error } = await supabase
         .from('chat_members')
@@ -33,15 +32,28 @@ export default function ChatList({ onSelect }: ChatListProps) {
         .eq('user_id', user.id)
 
       if (!error && data) {
-        const formatted = data.map((item) => ({
+        const formatted = data.map((item: any) => ({
           id: item.chat_id,
-          title: item.chats?.title || 'Untitled Chat'
+          title: item.chats?.title || 'Untitled Chat',
         }))
         setChats(formatted)
       }
     }
 
     fetchChats()
+
+    const channel = supabase
+      .channel('realtime:chat_members')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'chat_members' },
+        () => fetchChats()
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   const filteredChats = chats.filter((chat) =>
@@ -49,20 +61,22 @@ export default function ChatList({ onSelect }: ChatListProps) {
   )
 
   return (
-    <div className="h-full flex flex-col p-2">
+    <div className="w-full p-3 border-r h-full overflow-y-auto">
       <input
         type="text"
         placeholder="Search chats"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="mb-2 p-2 border border-gray-300 rounded"
+        className="w-full p-2 mb-4 border rounded"
       />
-      <ul className="space-y-1 overflow-y-auto">
+      <ul className="space-y-1">
         {filteredChats.map((chat) => (
           <li
             key={chat.id}
             onClick={() => onSelect(chat.id)}
-            className="cursor-pointer p-2 hover:bg-gray-100 rounded"
+            className={`cursor-pointer p-2 rounded hover:bg-gray-200 ${
+              chat.id === selectedChatId ? 'bg-gray-300 font-semibold' : ''
+            }`}
           >
             {chat.title}
           </li>

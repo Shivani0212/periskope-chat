@@ -4,48 +4,53 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
 interface ChatInputProps {
-  chatId: string
-  senderId: string
+  chatId: string | null
+  userId: string
 }
 
-export default function ChatInput({ chatId, senderId }: ChatInputProps) {
+export default function ChatInput({ chatId, userId }: ChatInputProps) {
   const [message, setMessage] = useState('')
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!message.trim()) return
+  const handleSend = async () => {
+    if (!message.trim() || !chatId) return
 
     const { error } = await supabase.from('messages').insert([
       {
-        content: message,
-        sender_id: senderId,
         chat_id: chatId,
+        sender_id: userId,
+        content: message.trim(),
       },
     ])
 
-    if (error) {
-      console.error('Error sending message:', error)
+    if (!error) {
+      setMessage('')
     } else {
-      setMessage('') // clear input
+      console.error('Send failed:', error.message)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSend()
     }
   }
 
   return (
-    <form onSubmit={handleSend} className="flex items-center border-t p-3 bg-white">
+    <div className="p-2 border-t border-gray-300 flex items-center">
       <input
         type="text"
-        className="flex-1 px-4 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
-        placeholder="Type your message..."
         value={message}
         onChange={(e) => setMessage(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Type a message..."
+        className="flex-1 px-4 py-2 border border-gray-300 rounded-l focus:outline-none"
       />
       <button
-        type="submit"
-        className="ml-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        onClick={handleSend}
+        className="bg-blue-500 text-white px-4 py-2 rounded-r hover:bg-blue-600"
       >
         Send
       </button>
-    </form>
+    </div>
   )
 }

@@ -1,49 +1,73 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import ChatList from '@/components/ChatList'
 import ChatWindow from '@/components/ChatWindow'
 import ChatInput from '@/components/ChatInput'
-import NewChatForm from '@/components/NewChatForm'
+import { useRouter } from 'next/navigation'
 
 export default function ChatsPage() {
-  const [user, setUser] = useState<any>(null)
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
+  const [chatId, setChatId] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) router.push('/login')
-      else setUser(user)
-    })
+    const fetchUser = async () => {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser()
+
+      if (error || !user) {
+        router.push('/login') // redirect to login if not authenticated
+        return
+      }
+
+      setUserId(user.id)
+    }
+
+    fetchUser()
   }, [router])
 
-  if (!user) return <p>Loading...</p>
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
+  if (!userId) {
+    return (
+      <div className="h-screen flex items-center justify-center text-gray-500">
+        Loading...
+      </div>
+    )
+  }
 
   return (
-    <div className="flex h-screen">
-      {/* Sidebar: List of Chats */}
-      <div className="w-1/4 border-r">
-        <ChatList onSelect={setSelectedChatId} />
-        <NewChatForm currentUserId={user.id} onChatCreated={() => {}} />
+    <div className="h-screen flex flex-col">
+      {/* Top Bar */}
+      <div className="flex justify-between items-center p-4 border-b border-gray-300 bg-white">
+        <h1 className="text-xl font-semibold">Periskope Chat</h1>
+        <button
+          onClick={handleLogout}
+          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
+        >
+          Logout
+        </button>
       </div>
 
-      {/* Chat Content Area */}
-      <div className="flex flex-col flex-1">
-        {selectedChatId ? (
-          <>
-            <div className="flex-1 overflow-y-auto">
-              <ChatWindow chatId={selectedChatId} />
-            </div>
-            <ChatInput chatId={selectedChatId} senderId={user.id} />
-          </>
-        ) : (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            Select a chat to start messaging
-          </div>
-        )}
+      {/* Main Chat Layout */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Chat List */}
+        <div className="w-1/3 border-r border-gray-300 overflow-y-auto">
+          <ChatList onSelect={setChatId} selectedChatId={chatId} />
+        </div>
+
+        {/* Chat View */}
+        <div className="flex flex-col flex-1">
+          <ChatWindow chatId={chatId} userId={userId} />
+          <ChatInput chatId={chatId} userId={userId} />
+        </div>
       </div>
     </div>
   )
